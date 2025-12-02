@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <title>Talabalar bilimini baholash tizimi</title>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            background: #f5f7fb;
+        }
+        .app-container {
+            max-width: 1000px;
+            margin: 30px auto;
+        }
+        .card {
+            border-radius: 16px;
+        }
+        .option-btn {
+            text-align: left;
+            margin-bottom: 10px;
+        }
+        .option-btn input {
+            margin-right: 8px;
+        }
+        #resultBox {
+            display: none;
+        }
+        #resultsTableBox {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="text-center mb-4">
+        <h2>Talabalar bilimini baholash tizimi</h2>
+        <p class="text-muted mb-1">Yo‘nalish: Boshlang‘ich ta’lim (namuna test)</p>
+        <span class="badge bg-primary">Onlayn test – 20 ta savol, 30 daqiqa</span>
+    </div>
+
+    <!-- Start Card -->
+    <div class="card mb-3" id="startBox">
+        <div class="card-body">
+            <h5 class="card-title">Testni boshlash</h5>
+            <p class="card-text">
+                Quyida boshlang‘ich ta’lim metodikasi va umumiy pedagogika bo‘yicha 20 ta test savoli beriladi.
+                Har bir to‘g‘ri javob uchun 5 ball beriladi (jami 100 ball).
+            </p>
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label for="groupName" class="form-label">Guruh raqami:</label>
+                    <input type="text" class="form-control" id="groupName"
+                           placeholder="Masalan, BT-21">
+                </div>
+                <div class="col-md-8">
+                    <label for="studentName" class="form-label">Talaba ismi-sharifi:</label>
+                    <input type="text" class="form-control" id="studentName"
+                           placeholder="Ism va familiyangizni kiriting">
+                </div>
+            </div>
+            <button class="btn btn-success" onclick="startTest()">Testni boshlash</button>
+        </div>
+    </div>
+
+    <!-- Question Card -->
+    <div class="card mb-3" id="testBox" style="display:none;">
+        <div class="card-body">
+            <div class="d-flex justify-content-between mb-2">
+                <div>
+                    <span id="questionIndex" class="fw-semibold"></span>
+                    <span class="text-muted ms-2" id="progressInfo"></span>
+                </div>
+                <div>
+                    <span class="badge bg-danger" id="timerBox">Vaqt: 30:00</span>
+                </div>
+            </div>
+            <h5 id="questionText"></h5>
+            <div id="optionsBox" class="mt-3"></div>
+
+            <div class="d-flex justify-content-between mt-3">
+                <button class="btn btn-secondary" onclick="prevQuestion()">Oldingi</button>
+                <button class="btn btn-primary" onclick="nextQuestion()">Keyingi</button>
+            </div>
+
+            <div class="text-end mt-3">
+                <button class="btn btn-success" onclick="finishTest(false)">Testni yakunlash</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Card -->
+    <div class="card" id="resultBox">
+        <div class="card-body">
+            <h5 class="card-title">Shaxsiy natijangiz</h5>
+            <p id="studentInfo" class="fw-semibold"></p>
+            <p id="scoreInfo"></p>
+            <p id="correctInfo"></p>
+            <p id="gradeInfo" class="fw-semibold"></p>
+            <p id="timeInfo" class="text-muted"></p>
+
+            <!-- Grafik ko‘rinish (progress bar) -->
+            <div class="mt-3">
+                <label class="form-label fw-semibold">Grafik ko‘rinish (0–100 ball):</label>
+                <div class="progress">
+                    <div id="scoreBar"
+                         class="progress-bar"
+                         role="progressbar"
+                         style="width: 0%;">
+                        0 ball
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-outline-primary mt-3" onclick="restartTest()">
+                Yana bir bor topshirish
+            </button>
+        </div>
+    </div>
+
+    <!-- Umumiy natijalar jadvali -->
+    <div class="card mt-3" id="resultsTableBox">
+        <div class="card-body">
+            <h5 class="card-title">Testni bajargan talabalar natijalari</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Guruh</th>
+                        <th>Talaba</th>
+                        <th>Ball (0–100)</th>
+                        <th>Baho</th>
+                        <th>To‘g‘ri javob</th>
+                        <th>Vaqt</th>
+                        <th>Sana / vaqt</th>
+                    </tr>
+                    </thead>
+                    <tbody id="resultsTableBody">
+                    <!-- JS orqali to‘ldiriladi -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ===== 1. Savollar bazasi (Boshlang‘ich ta’lim yo‘nalishi uchun 20 ta test) =====
+const questions = [
+    {
+        text: "Boshlang‘ich ta’lim necha sinflarni o‘z ichiga oladi?",
+        options: [
+            "1–4-sinflar",
+            "1–3-sinflar",
+            "1–5-sinflar",
+            "2–4-sinflar"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Darsning asosiy maqsadi nima?",
+        options: [
+            "O‘quvchilar bilimini egallash va rivojlantirish",
+            "Faqat uy vazifasini tekshirish",
+            "O‘qituvchining rejasini to‘ldirish",
+            "Sinfdan tashqari ishlarni bajarish"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Boshlang‘ich sinf o‘quvchisining yoshi odatda nechaga to‘g‘ri keladi?",
+        options: [
+            "6–10 yosh",
+            "10–15 yosh",
+            "4–6 yosh",
+            "15–18 yosh"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "O‘yinli texnologiyalar asosan qaysi yoshdagi bolalar uchun samaraliroq?",
+        options: [
+            "Boshlang‘ich sinf o‘quvchilari uchun",
+            "Faqat oliy ta’lim talabalari uchun",
+            "Faqat kattalar uchun",
+            "Faqat maktabgacha yoshdan keyin"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Didaktika nimani o‘rganadi?",
+        options: [
+            "O‘qitish va o‘qish jarayonining nazariyasi va metodikasini",
+            "Faqat tarbiya usullarini",
+            "Faqat sinf rahbarining vazifalarini",
+            "Faqat baholash shakllarini"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Boshlang‘ich sinflarda ko‘proq qaysi baholash shakli qo‘llaniladi?",
+        options: [
+            "Rag‘batlantiruvchi, og‘zaki va balli baholash",
+            "Faqat yakuniy imtihon",
+            "Faqat test sinovlari",
+            "Faqat reyting tizimi"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Interfaol metodning asosiy xususiyati nimada?",
+        options: [
+            "O‘quvchini faol ishtirokchi sifatida jalb qilish",
+            "Faqat o‘qituvchi so‘zlaydi",
+            "Faqat ma’ruza o‘qish",
+            "Faqat yozma ishlarga asoslanish"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "“Aqliy hujum” metodi qanday maqsadda qo‘llaniladi?",
+        options: [
+            "O‘quvchilardan ko‘proq g‘oya va takliflar olish uchun",
+            "Faqat xotirani tekshirish uchun",
+            "Faqat diktant yozdirish uchun",
+            "Faqat sinf intizomini nazorat qilish uchun"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Boshlang‘ich sinfda axborot texnologiyalaridan foydalanishning asosiy maqsadi:",
+        options: [
+            "O‘quv motivatsiyasini oshirish va materialni vizuallashtirish",
+            "Faqat kompyuter sinovini o‘tkazish",
+            "Faqat o‘qituvchining ishini yengillashtirish",
+            "Faqat o‘yin o‘ynash"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Dars konspekti deganda nima tushuniladi?",
+        options: [
+            "O‘qituvchining darsga tayyorgarlik rejasi",
+            "O‘quvchilarning daftaridagi yozuvlar",
+            "Maktab nizomi",
+            "Sinf jurnalidagi qaydlar"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Boshlang‘ich sinf o‘qituvchisining asosiy vazifalaridan biri:",
+        options: [
+            "O‘quvchini mustaqil fikrlashga o‘rgatish",
+            "Faqat nazorat ishlari o‘tkazish",
+            "Faqat baho qo‘yish",
+            "Faqat ota-onalar bilan ishlash"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "“Differensial yondashuv” deganda nimani tushunasiz?",
+        options: [
+            "O‘quvchilarning individual xususiyatlarini hisobga olib ishlash",
+            "Faqat kuchsiz o‘quvchilar bilan ishlash",
+            "Faqat iqtidorli o‘quvchilar bilan ishlash",
+            "Faqat darsdan tashqari ishlarda qatnashish"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Boshlang‘ich sinfda yozuv darslarida ko‘proq nimalarga e’tibor beriladi?",
+        options: [
+            "To‘g‘ri chiziq, harf shakli va xat tartibiga",
+            "Faqat tez yozishga",
+            "Faqat chiroyli daftar tutishga",
+            "Faqat rangli ruchkalardan foydalanishga"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Multimedia vositalaridan foydalanishning asosiy afzalligi:",
+        options: [
+            "Matn, rasm, audio va videoni birgalikda qo‘llash imkoniyati",
+            "Faqat rasm ko‘rsatish",
+            "Faqat musiqani eshittirish",
+            "Faqat videoni ko‘rsatish"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Didaktik o‘yinlar asosan qaysi maqsadga xizmat qiladi?",
+        options: [
+            "Bilim, ko‘nikma va malakalarni qiziqarli shaklda rivojlantirishga",
+            "Faqat bo‘sh vaqtni to‘ldirishga",
+            "Faqat intizomni kuchaytirishga",
+            "Faqat nazorat ishiga"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Boshlang‘ich ta’limda darsning davomiyligi odatda qancha bo‘ladi?",
+        options: [
+            "35–45 daqiqa",
+            "60 daqiqa",
+            "20 daqiqa",
+            "90 daqiqa"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "“Refleksiya” bosqichi darsning qaysi qismida bajariladi?",
+        options: [
+            "Dars yakunida o‘quvchi o‘z faoliyatini baholaganda",
+            "Dars boshida mavzuni e’lon qilishda",
+            "Yangi mavzuni tushuntirishda",
+            "Uy vazifasini tekshirishda"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Boshlang‘ich sinf o‘quvchisiga topshiriq berishda nimalarga e’tibor berish kerak?",
+        options: [
+            "Yoshi, tayyorgarlik darajasi va qiziqishlariga mos bo‘lishiga",
+            "Faqat murakkabligiga",
+            "Faqat hajmiga",
+            "Faqat uyda bajarish imkoniyatiga"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Axborot-kommunikatsiya texnologiyalari (AKT) deganda nima tushuniladi?",
+        options: [
+            "Ma’lumotlarni yig‘ish, saqlash, qayta ishlash va uzatishga xizmat qiluvchi texnologiyalar",
+            "Faqat telefon aloqasi",
+            "Faqat televizor va radio",
+            "Faqat kompyuter o‘yinlari"
+        ],
+        correctIndex: 0
+    },
+    {
+        text: "Elektron darslikning an’anaviy darslikdan ustun tomoni:",
+        options: [
+            "Interaktivlik va multimedia imkoniyatlarining mavjudligi",
+            "Faqat qog‘ozda bo‘lishi",
+            "Faqat matndan iborat bo‘lishi",
+            "Faqat oflayn ishlashi"
+        ],
+        correctIndex: 0
+    }
+];
+
+// ===== 2. O'zgaruvchilar =====
+let currentQuestionIndex = 0;
+let userAnswers = new Array(questions.length).fill(null);
+let studentName = "";
+let groupName = "";
+let timerSeconds = 30 * 60; // 30 daqiqa
+let timerInterval = null;
+let attempts = []; // umumiy natijalar ro‘yxati
+
+// ===== 3. Timer funksiyalari =====
+function formatTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    const mm = m < 10 ? "0" + m : m;
+    const ss = s < 10 ? "0" + s : s;
+    return mm + ":" + ss;
+}
+
+function startTimer() {
+    timerSeconds = 30 * 60; // har safar yangidan
+    document.getElementById("timerBox").innerText = "Vaqt: " + formatTime(timerSeconds);
+
+    timerInterval = setInterval(() => {
+        timerSeconds--;
+        document.getElementById("timerBox").innerText = "Vaqt: " + formatTime(timerSeconds);
+
+        if (timerSeconds <= 0) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            finishTest(true); // vaqt tugadi
+        }
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+// ===== 4. Testni boshqarish funksiyalari =====
+function startTest() {
+    studentName = document.getElementById("studentName").value.trim();
+    groupName = document.getElementById("groupName").value.trim();
+
+    if (!groupName || !studentName) {
+        alert("Iltimos, guruh raqami va ismi-sharifni kiriting!");
+        return;
+    }
+
+    document.getElementById("startBox").style.display = "none";
+    document.getElementById("testBox").style.display = "block";
+
+    currentQuestionIndex = 0;
+    userAnswers = new Array(questions.length).fill(null);
+    loadQuestion();
+    startTimer();
+}
+
+function loadQuestion() {
+    const q = questions[currentQuestionIndex];
+
+    document.getElementById("questionIndex").innerText =
+        "Savol " + (currentQuestionIndex + 1);
+    document.getElementById("progressInfo").innerText =
+        (currentQuestionIndex + 1) + " / " + questions.length + " ta";
+
+    document.getElementById("questionText").innerText = q.text;
+
+    const optionsBox = document.getElementById("optionsBox");
+    optionsBox.innerHTML = "";
+
+    q.options.forEach((opt, idx) => {
+        const div = document.createElement("div");
+        div.className = "form-check option-btn";
+
+        const input = document.createElement("input");
+        input.className = "form-check-input";
+        input.type = "radio";
+        input.name = "answerOption";
+        input.id = "opt" + idx;
+        input.value = idx;
+
+        if (userAnswers[currentQuestionIndex] === idx) {
+            input.checked = true;
+        }
+
+        input.addEventListener("change", () => {
+            userAnswers[currentQuestionIndex] = idx;
+        });
+
+        const label = document.createElement("label");
+        label.className = "form-check-label";
+        label.htmlFor = "opt" + idx;
+        label.innerText = opt;
+
+        div.appendChild(input);
+        div.appendChild(label);
+        optionsBox.appendChild(div);
+    });
+}
+
+function nextQuestion() {
+    if (currentQuestionIndex < questions.length - 1) {
+        currentQuestionIndex++;
+        loadQuestion();
+    }
+}
+
+function prevQuestion() {
+    if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+        loadQuestion();
+    }
+}
+
+// timeUp = true bo‘lsa, vaqt tugaganligi sababli yakunlangan
+function finishTest(timeUp) {
+    // Timer to'xtatiladi
+    stopTimer();
+
+    // To'g'ri javoblar soni
+    let correctCount = 0;
+    questions.forEach((q, i) => {
+        if (userAnswers[i] === q.correctIndex) {
+            correctCount++;
+        }
+    });
+
+    const score = correctCount * 5; // 20 * 5 = 100 ball
+    const spentSeconds = 30 * 60 - timerSeconds;
+    const minutes = Math.floor(spentSeconds / 60);
+    const seconds = spentSeconds % 60;
+    const timeSpent = (minutes || seconds)
+        ? (minutes + " daqiqa " + seconds + " soniya")
+        : "0 daqiqa";
+
+    // Baholash mezoni
+    let gradeText = "";
+    let gradeShort = "";
+    if (score <= 59) {
+        gradeText = "Baholash: Qoniqarsiz (2)";
+        gradeShort = "Qoniqarsiz (2)";
+    } else if (score <= 69) {
+        gradeText = "Baholash: Qoniqarli (3)";
+        gradeShort = "Qoniqarli (3)";
+    } else if (score <= 89) {
+        gradeText = "Baholash: Yaxshi (4)";
+        gradeShort = "Yaxshi (4)";
+    } else {
+        gradeText = "Baholash: A'lo (5)";
+        gradeShort = "A'lo (5)";
+    }
+
+    document.getElementById("testBox").style.display = "none";
+    document.getElementById("resultBox").style.display = "block";
+
+    document.getElementById("studentInfo").innerText =
+        "Talaba: " + studentName + " | Guruh: " + groupName;
+
+    document.getElementById("scoreInfo").innerText =
+        "Yig‘ilgan ball: " + score + " / 100 ball";
+
+    document.getElementById("correctInfo").innerText =
+        "To‘g‘ri javoblar soni: " + correctCount + " / " + questions.length + " ta";
+
+    document.getElementById("gradeInfo").innerText = gradeText;
+
+    document.getElementById("timeInfo").innerText =
+        "Testga sarflangan vaqt: " + timeSpent + (timeUp ? " (vaqt tugadi)" : "");
+
+    // Grafik ko‘rinish (progress bar)
+    const scoreBar = document.getElementById("scoreBar");
+    scoreBar.style.width = score + "%";
+    scoreBar.innerText = score + " ball";
+
+    // Rangni bahoga qarab o‘zgartirish
+    scoreBar.classList.remove("bg-success", "bg-warning", "bg-danger", "bg-info");
+    if (score <= 59) {
+        scoreBar.classList.add("bg-danger");
+    } else if (score <= 69) {
+        scoreBar.classList.add("bg-warning");
+    } else if (score <= 89) {
+        scoreBar.classList.add("bg-info");
+    } else {
+        scoreBar.classList.add("bg-success");
+    }
+
+    // Umumiy natijalar ro‘yxatiga yozib qo‘yish
+    attempts.push({
+        groupName,
+        studentName,
+        score,
+        gradeShort,
+        correctCount,
+        total: questions.length,
+        timeSpent,
+        datetime: new Date().toLocaleString("uz-UZ")
+    });
+    renderResultsTable();
+}
+
+function restartTest() {
+    // Natija oynasi yopilib, qayta start oynasiga qaytamiz
+    document.getElementById("resultBox").style.display = "none";
+    document.getElementById("startBox").style.display = "block";
+    document.getElementById("studentName").value = "";
+    document.getElementById("groupName").value = "";
+}
+
+// ===== 5. Umumiy natijalar jadvalini chizish =====
+function renderResultsTable() {
+    const box = document.getElementById("resultsTableBox");
+    const tbody = document.getElementById("resultsTableBody");
+    tbody.innerHTML = "";
+
+    if (attempts.length === 0) {
+        box.style.display = "none";
+        return;
+    }
+
+    attempts.forEach((item, index) => {
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${item.groupName}</td>
+            <td>${item.studentName}</td>
+            <td>${item.score}</td>
+            <td>${item.gradeShort}</td>
+            <td>${item.correctCount} / ${item.total}</td>
+            <td>${item.timeSpent}</td>
+            <td>${item.datetime}</td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+
+    box.style.display = "block";
+}
+</script>
+</body>
+</html>
