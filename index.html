@@ -392,6 +392,14 @@ function stopTimer() {
     }
 }
 
+// ===== 3.1. Massivlarni aralashtiruvchi funksiya =====
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
 // ===== 4. Testni boshqarish funksiyalari =====
 function startTest() {
     studentName = document.getElementById("studentName").value.trim();
@@ -401,6 +409,17 @@ function startTest() {
         alert("Iltimos, guruh raqami va ismi-sharifni kiriting!");
         return;
     }
+
+    // ❗ 1) Savollarning o'z tartibini har safar aralashtiramiz
+    shuffleArray(questions);
+
+    // ❗ 2) Har bir savol uchun javob variantlarini ham aralashtirib,
+    // to‘g‘ri javob indeksini qayta hisoblaymiz
+    questions.forEach(q => {
+        const originalCorrect = q.options[q.correctIndex]; // hozirgi to‘g‘ri javob matni
+        shuffleArray(q.options);                          // variantlarni aralashtiramiz
+        q.correctIndex = q.options.indexOf(originalCorrect); // yangi indeksni topamiz
+    });
 
     document.getElementById("startBox").style.display = "none";
     document.getElementById("testBox").style.display = "block";
